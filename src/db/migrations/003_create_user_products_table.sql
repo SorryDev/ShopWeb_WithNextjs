@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS user_products (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL,
+  product_id VARCHAR(255) NOT NULL,
+  purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
