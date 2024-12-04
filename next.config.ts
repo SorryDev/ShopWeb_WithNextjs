@@ -11,7 +11,20 @@ const nextConfig = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
-  
+  optimizeFonts: true,
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Set-Cookie',
+            value: 'SameSite=None; Secure',
+          },
+        ],
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig

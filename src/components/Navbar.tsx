@@ -23,8 +23,7 @@ export default function Navbar() {
 
   const handleSignIn = async () => {
     try {
-      // Remove redirect: false to allow NextAuth to handle the redirect
-      await signIn('discord')
+      await signIn('discord', { callbackUrl: pathname })
     } catch (e) {
       console.error('An unexpected error occurred during sign in', e)
     }
@@ -32,8 +31,7 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     try {
-      // Remove redirect: false to allow NextAuth to handle the redirect
-      await signOut()
+      await signOut({ callbackUrl: '/' })
     } catch (e) {
       console.error('An unexpected error occurred during sign out', e)
     }

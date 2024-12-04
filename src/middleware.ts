@@ -16,15 +16,17 @@ export async function middleware(request: NextRequest) {
     pathname === '/scripts' ||
     pathname === '/theme' ||
     pathname === '/guide' ||
-    pathname === '/discord'
+    pathname === '/discord' ||
+    pathname.startsWith('/auth')
   ) {
     return NextResponse.next()
   }
 
   // Check authentication
   if (!token) {
-    // Direct to Discord OAuth
-    return NextResponse.redirect(new URL('/api/auth/signin/discord', request.url))
+    const signInUrl = new URL('/auth/signin', request.url)
+    signInUrl.searchParams.set('callbackUrl', request.url)
+    return NextResponse.redirect(signInUrl)
   }
 
   // Handle admin routes
