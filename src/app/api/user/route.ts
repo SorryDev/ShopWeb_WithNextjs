@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
-import pool from '@/lib/db'
+import {query} from '@/lib/db' // Updated import statement
 import { RowDataPacket } from 'mysql2'
 
 export async function GET() {
@@ -12,7 +12,7 @@ export async function GET() {
   }
 
   try {
-    const [rows] = await pool.query<RowDataPacket[]>('SELECT points, vps_rank, machine_rank, base_rank FROM users WHERE id = ?', [session.user.id])
+    const { rows } = await query('SELECT points, vps_rank, machine_rank, base_rank FROM users WHERE id = $1', [session.user.id]) // Updated query execution
 
     if (rows.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
