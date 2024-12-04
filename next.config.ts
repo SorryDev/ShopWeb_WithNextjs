@@ -11,9 +11,7 @@ const nextConfig = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
-  env: {
-    POSTGRES_URL: process.env.POSTGRES_URL,
-  },
+  
 }
 
 module.exports = nextConfig
