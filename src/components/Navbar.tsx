@@ -7,34 +7,61 @@ import { useRouter, usePathname } from 'next/navigation'
 import { DiscordLogoIcon } from '@radix-ui/react-icons'
 import { signIn, signOut, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import useSWR from 'swr'
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export default function Navbar() {
   const { data: session, status } = useSession()
-  const { data: userData, error } = useSWR(
-    session ? '/api/user' : null,
-    fetcher
-  )
+  const [error, setError] = useState<string | null>(null)
   const [imageError, setImageError] = useState(false)
+  const [userPoints, setUserPoints] = useState<number | null>(null)
+  const [isPointsLoading, setIsPointsLoading] = useState(false);
+  const [userRanks, setUserRanks] = useState<{ vps_rank: number; machine_rank: number; base_rank: number } | null>(null);
   const router = useRouter()
   const pathname = usePathname()
 
+  useEffect(() => {
+    async function fetchUserData() {
+      if (status === "authenticated") {
+        setIsPointsLoading(true)
+        try {
+          const response = await fetch('/api/user')
+          if (response.ok) {
+            const data = await response.json()
+            setUserPoints(data.points)
+            setUserRanks({
+              vps_rank: data.vps_rank,
+              machine_rank: data.machine_rank,
+              base_rank: data.base_rank
+            })
+          } else {
+            console.error('Failed to fetch user data')
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error)
+        } finally {
+          setIsPointsLoading(false)
+        }
+      }
+    }
+
+    fetchUserData()
+  }, [status, pathname])
+
   const handleSignIn = async () => {
     try {
-      await signIn('discord', { callbackUrl: pathname })
+      const result = await signIn('discord', { redirect: false })
+      if (result?.error) {
+        setError(result.error)
+      } else if (result?.url) {
+        router.push(result.url)
+      }
     } catch (e) {
-      console.error('An unexpected error occurred during sign in', e)
+      setError('An unexpected error occurred')
     }
   }
 
   const handleSignOut = async () => {
-    try {
-      await signOut({ callbackUrl: '/' })
-    } catch (e) {
-      console.error('An unexpected error occurred during sign out', e)
-    }
+    const data = await signOut({ redirect: false, callbackUrl: "/" })
+    router.push(data.url)
   }
 
   const handleImageError = () => {
@@ -71,7 +98,7 @@ export default function Navbar() {
                 เติมเงิน
               </Link>
               <div className="text-gray-400">
-                <span className="mr-1">{userData ? userData.points.toLocaleString() : 'Loading...'}</span>
+                <span className="mr-1">{isPointsLoading ? 'Loading...' : userPoints !== null ? userPoints.toLocaleString() : '0'}</span>
                 Points
               </div>
               {session.user.role === 'admin' && (
@@ -81,7 +108,7 @@ export default function Navbar() {
                   </Button>
                 </Link>
               )}
-              {userData?.vps_rank === 1 && (
+              {userRanks?.vps_rank === 1 && (
                 <Button
                   onClick={() => router.push('/vps')}
                   variant="outline"
@@ -141,6 +168,11 @@ export default function Navbar() {
             </button>
           )}
         </div>
+        {error && (
+          <div className="bg-red-500 text-white p-2 text-center mt-2">
+            Error: {error}
+          </div>
+        )}
       </div>
     </nav>
   )

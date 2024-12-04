@@ -1,36 +1,35 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+// import rateLimit from 'express-rate-limit'
+// 
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 100 // limit each IP to 100 requests per windowMs
+// })
 
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
   const { pathname } = request.nextUrl
 
-  // Allow public routes and static files
-  if (
-    pathname.startsWith('/_next') || 
-    pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/static') ||
-    pathname === '/favicon.ico' ||
-    pathname === '/' ||
-    pathname === '/scripts' ||
-    pathname === '/theme' ||
-    pathname === '/guide' ||
-    pathname === '/discord' ||
-    pathname.startsWith('/auth')
-  ) {
+  // Apply rate limiting
+  // await new Promise((resolve) => limiter(request, NextResponse.next(), resolve))
+
+  // Allow public routes
+  const publicRoutes = ['/', '/login', '/register']
+  if (publicRoutes.includes(pathname)) {
     return NextResponse.next()
   }
 
-  // Check authentication
+  // Redirect to login if not authenticated and trying to access a protected route
   if (!token) {
-    const signInUrl = new URL('/auth/signin', request.url)
-    signInUrl.searchParams.set('callbackUrl', request.url)
-    return NextResponse.redirect(signInUrl)
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('callbackUrl', encodeURI(request.url))
+    return NextResponse.redirect(loginUrl)
   }
 
-  // Handle admin routes
-  if (pathname.startsWith('/admin') && token.role !== 'admin') {
+  // If authenticated and trying to access login/register, redirect to home
+  if (token && (pathname === '/login' || pathname === '/register')) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
@@ -39,7 +38,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 }
 

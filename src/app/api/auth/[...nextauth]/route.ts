@@ -9,45 +9,31 @@ export const authOptions: NextAuthOptions = {
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID as string,
       clientSecret: process.env.DISCORD_CLIENT_SECRET as string,
-      authorization: { params: { scope: 'identify email' } },
     }),
   ],
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "discord") {
-        const connection = await pool.getConnection()
-        try {
-          const [rows] = await connection.query('SELECT * FROM users WHERE id = ?', [user.id])
-          if (Array.isArray(rows) && rows.length === 0) {
-            await connection.query(
-              'INSERT INTO users (id, name, email, image, role) VALUES (?, ?, ?, ?, ?)',
-              [user.id, user.name, user.email, user.image, 'user']
-            )
-          }
-          return true
-        } finally {
-          connection.release()
+        const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [user.id])
+        if (Array.isArray(rows) && rows.length === 0) {
+          // User doesn't exist, create a new one
+          await pool.query(
+            'INSERT INTO users (id, name, email, image, role) VALUES (?, ?, ?, ?, ?)',
+            [user.id, user.name, user.email, user.image, 'user']
+          )
         }
       }
       return true
     },
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account }) {
       if (account) {
         token.id = account.providerAccountId
       }
-      
-      if (token.id) {
-        const connection = await pool.getConnection()
-        try {
-          const [rows] = await connection.query('SELECT role FROM users WHERE id = ?', [token.id]) as [RowDataPacket[], FieldPacket[]]
-          if (rows.length > 0) {
-            token.role = (rows[0] as { role: string }).role
-          }
-        } finally {
-          connection.release()
-        }
+      // Fetch user role from database
+      const [rows] = await pool.query('SELECT role FROM users WHERE id = ?', [token.id]) as [RowDataPacket[], FieldPacket[]]
+      if (rows.length > 0) {
+        token.role = (rows[0] as { role: string }).role
       }
-      
       return token
     },
     async session({ session, token }) {
@@ -57,25 +43,10 @@ export const authOptions: NextAuthOptions = {
       }
       return session
     },
-    async redirect({ url, baseUrl }) {
-      // Allow relative URLs
-      if (url.startsWith("/")) return `${baseUrl}${url}`
-      // Allow URLs from the same origin
-      else if (new URL(url).origin === baseUrl) return url
-      return baseUrl
-    },
   },
-  pages: {
-    signIn: '/auth/signin',
-    error: '/auth/error',
-  },
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  secret: process.env.NEXTAUTH_SECRET,
 }
 
 const handler = NextAuth(authOptions)
+
 export { handler as GET, handler as POST }
 
