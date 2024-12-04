@@ -6,38 +6,30 @@ export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
   const { pathname } = request.nextUrl
 
-  // Allow public routes
-  const publicRoutes = ['/', '/scripts', '/theme', '/guide', '/discord']
-  if (publicRoutes.includes(pathname)) {
+  // Allow public routes and static files
+  if (
+    pathname.startsWith('/_next') || 
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/static') ||
+    pathname === '/favicon.ico' ||
+    pathname === '/' ||
+    pathname === '/scripts' ||
+    pathname === '/theme' ||
+    pathname === '/guide' ||
+    pathname === '/discord'
+  ) {
     return NextResponse.next()
   }
 
-  // Handle API routes separately
-  if (pathname.startsWith('/api/')) {
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    return NextResponse.next()
-  }
-
-  // Check authentication for protected routes
+  // Check authentication
   if (!token) {
-    // Create a new URL for the sign-in page
-    const signInUrl = new URL('/api/auth/signin/discord', request.url)
-    
-    // Only add callbackUrl if it's not the login page itself
-    if (!pathname.includes('/api/auth/signin')) {
-      signInUrl.searchParams.set('callbackUrl', pathname)
-    }
-    
-    return NextResponse.redirect(signInUrl)
+    // Direct to Discord OAuth
+    return NextResponse.redirect(new URL('/api/auth/signin/discord', request.url))
   }
 
-  // Special handling for admin routes
-  if (pathname.startsWith('/admin')) {
-    if (token.role !== 'admin') {
-      return NextResponse.redirect(new URL('/', request.url))
-    }
+  // Handle admin routes
+  if (pathname.startsWith('/admin') && token.role !== 'admin') {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   return NextResponse.next()
@@ -45,14 +37,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
   ],
 }
 

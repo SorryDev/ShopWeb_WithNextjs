@@ -9,12 +9,9 @@ export const authOptions: NextAuthOptions = {
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID as string,
       clientSecret: process.env.DISCORD_CLIENT_SECRET as string,
+      authorization: { params: { scope: 'identify email' } },
     }),
   ],
-  pages: {
-    signIn: '/api/auth/signin/discord',
-    error: '/auth/error',
-  },
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "discord") {
@@ -22,7 +19,6 @@ export const authOptions: NextAuthOptions = {
         try {
           const [rows] = await connection.query('SELECT * FROM users WHERE id = ?', [user.id])
           if (Array.isArray(rows) && rows.length === 0) {
-            // User doesn't exist, create a new one
             await connection.query(
               'INSERT INTO users (id, name, email, image, role) VALUES (?, ?, ?, ?, ?)',
               [user.id, user.name, user.email, user.image, 'user']
@@ -40,7 +36,6 @@ export const authOptions: NextAuthOptions = {
         token.id = account.providerAccountId
       }
       
-      // Fetch user role from database
       if (token.id) {
         const connection = await pool.getConnection()
         try {
@@ -63,20 +58,23 @@ export const authOptions: NextAuthOptions = {
       return session
     },
     async redirect({ url, baseUrl }) {
-      // Allow relative URLs
-      if (url.startsWith("/")) return `${baseUrl}${url}`
-      // Allow URLs from the same origin
-      else if (new URL(url).origin === baseUrl) return url
+      // Handle redirect after sign in
+      if (url.startsWith(baseUrl)) return url
+      if (url.startsWith('/')) return `${baseUrl}${url}`
       return baseUrl
     },
   },
+  pages: {
+    signIn: '/auth/signin',
+    error: '/auth/error',
+  },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
 }
 
 const handler = NextAuth(authOptions)
-
 export { handler as GET, handler as POST }
 

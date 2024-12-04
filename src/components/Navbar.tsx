@@ -7,57 +7,36 @@ import { useRouter, usePathname } from 'next/navigation'
 import { DiscordLogoIcon } from '@radix-ui/react-icons'
 import { signIn, signOut, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
+import useSWR from 'swr'
 
-interface UserData {
-  points: number
-  vps_rank: number
-  machine_rank: number
-  base_rank: number
-}
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export default function Navbar() {
   const { data: session, status } = useSession()
-  const [userData, setUserData] = useState<UserData | null>(null)
+  const { data: userData, error } = useSWR(
+    session ? '/api/user' : null,
+    fetcher
+  )
   const [imageError, setImageError] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
-  useEffect(() => {
-    async function fetchUserData() {
-      if (session?.user?.id) {
-        try {
-          const response = await fetch('/api/user')
-          if (response.ok) {
-            const data = await response.json()
-            setUserData(data)
-          } else {
-            console.error('Failed to fetch user data')
-          }
-        } catch (error) {
-          console.error('Error fetching user data:', error)
-        }
-      }
-    }
-
-    fetchUserData()
-  }, [session?.user?.id])
-
   const handleSignIn = async () => {
     try {
-      const result = await signIn('discord', { redirect: false })
-      if (result?.error) {
-        console.error(result.error)
-      } else if (result?.url) {
-        router.push(result.url)
-      }
+      // Remove redirect: false to allow NextAuth to handle the redirect
+      await signIn('discord')
     } catch (e) {
       console.error('An unexpected error occurred during sign in', e)
     }
   }
 
   const handleSignOut = async () => {
-    const data = await signOut({ redirect: false, callbackUrl: "/" })
-    router.push(data.url)
+    try {
+      // Remove redirect: false to allow NextAuth to handle the redirect
+      await signOut()
+    } catch (e) {
+      console.error('An unexpected error occurred during sign out', e)
+    }
   }
 
   const handleImageError = () => {
