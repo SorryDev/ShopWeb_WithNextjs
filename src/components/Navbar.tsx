@@ -7,19 +7,40 @@ import { useRouter, usePathname } from 'next/navigation'
 import { DiscordLogoIcon } from '@radix-ui/react-icons'
 import { signIn, signOut, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import useSWR from 'swr'
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+interface UserData {
+  points: number
+  vps_rank: number
+  machine_rank: number
+  base_rank: number
+}
 
 export default function Navbar() {
   const { data: session, status } = useSession()
-  const { data: userData, error } = useSWR(
-    session ? '/api/user' : null,
-    fetcher
-  )
+  const [userData, setUserData] = useState<UserData | null>(null)
   const [imageError, setImageError] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
+
+  useEffect(() => {
+    async function fetchUserData() {
+      if (session?.user?.id) {
+        try {
+          const response = await fetch('/api/user')
+          if (response.ok) {
+            const data = await response.json()
+            setUserData(data)
+          } else {
+            console.error('Failed to fetch user data')
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error)
+        }
+      }
+    }
+
+    fetchUserData()
+  }, [session?.user?.id])
 
   const handleSignIn = async () => {
     try {

@@ -1,36 +1,43 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-// import rateLimit from 'express-rate-limit'
-// 
-// const limiter = rateLimit({
-//   windowMs: 15 * 60 * 1000, // 15 minutes
-//   max: 100 // limit each IP to 100 requests per windowMs
-// })
 
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
   const { pathname } = request.nextUrl
 
-  // Apply rate limiting
-  // await new Promise((resolve) => limiter(request, NextResponse.next(), resolve))
-
   // Allow public routes
-  const publicRoutes = ['/', '/login', '/register']
+  const publicRoutes = ['/', '/scripts', '/theme', '/guide', '/discord']
   if (publicRoutes.includes(pathname)) {
     return NextResponse.next()
   }
 
-  // Redirect to login if not authenticated and trying to access a protected route
-  if (!token) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('callbackUrl', encodeURI(request.url))
-    return NextResponse.redirect(loginUrl)
+  // Handle API routes separately
+  if (pathname.startsWith('/api/')) {
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.next()
   }
 
-  // If authenticated and trying to access login/register, redirect to home
-  if (token && (pathname === '/login' || pathname === '/register')) {
-    return NextResponse.redirect(new URL('/', request.url))
+  // Check authentication for protected routes
+  if (!token) {
+    // Create a new URL for the sign-in page
+    const signInUrl = new URL('/api/auth/signin/discord', request.url)
+    
+    // Only add callbackUrl if it's not the login page itself
+    if (!pathname.includes('/api/auth/signin')) {
+      signInUrl.searchParams.set('callbackUrl', pathname)
+    }
+    
+    return NextResponse.redirect(signInUrl)
+  }
+
+  // Special handling for admin routes
+  if (pathname.startsWith('/admin')) {
+    if (token.role !== 'admin') {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
   }
 
   return NextResponse.next()
@@ -38,7 +45,14 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
   ],
 }
 
