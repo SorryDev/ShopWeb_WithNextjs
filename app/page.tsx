@@ -1,29 +1,7 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import LoginForm from "@/components/auth/login-form"
-import SetupRequired from "@/components/setup-required"
+"use client"
 
-export default async function HomePage() {
-  // Check if Supabase is configured
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+import { Calendar } from "../src/components/ui/calendar"
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return <SetupRequired />
-  }
-
-  try {
-    const supabase = await createServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (user) {
-      redirect("/dashboard")
-    }
-  } catch (error) {
-    console.warn("Error checking user:", error)
-  }
-
-  return <LoginForm />
+export default function SyntheticV0PageForDeployment() {
+  return <Calendar />
 }
